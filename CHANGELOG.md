@@ -2,11 +2,16 @@
 
 ## Fase 0 — Setup
 
-- [ ] 0.1 — PDF do Pro Git em `data/corpus/`
-- [ ] 0.2 — `.env` configurado com GEMINI_API_KEY
-- [ ] 0.3 — Ambiente virtual criado e dependências instaladas
-- [ ] 0.4 — Langfuse configurado
-- [ ] 0.5 — `projeto-portfolio.pdf` e `.md` adicionados ao `.gitignore`
+- [x] 0.1 — PDF do Pro Git (501 págs, 18MB) em `data/corpus/progit.pdf`
+- [x] 0.2 — `.env.local` configurado com GEMINI_API_KEY + Langfuse
+- [x] 0.3 — Ambiente virtual criado e dependências instaladas (114 pacotes)
+- [x] 0.4 — Langfuse instalado e configurado
+- [x] 0.5 — `projeto-portfolio.pdf` e `.md` adicionados ao `.gitignore`
+- [x] 0.6 — `CHANGELOG.md` criado
+- [x] 0.7 — `TODO.md` criado com plano por fases
+- [x] 0.8 — `LICENSE` (MIT) adicionado
+- [x] 0.9 — Repositório Git inicializado e push para GitHub
+- [x] 0.10 — `.env` renomeado para `.env.local` + `load_dotenv` atualizado
 
 ## Fase 1 — Pipeline RAG (TODOs 1-3)
 

@@ -22,7 +22,7 @@ def pipeline():
     pytest.importorskip("dotenv")
     from dotenv import load_dotenv
 
-    load_dotenv()
+    load_dotenv(dotenv_path=".env.local")
 
     if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY")):
         pytest.skip("API key nao configurada em .env")

@@ -47,8 +47,8 @@ uv venv && source .venv/bin/activate
 uv sync
 
 # 3. API key (escolha 1 provider em .env.example)
-cp .env.example .env
-# edite .env com sua key
+cp .env.example .env.local
+# edite .env.local com sua key
 
 # 4. Corpus
 # Substitua data/corpus/*.pdf pelos seus documentos

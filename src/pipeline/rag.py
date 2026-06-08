@@ -1,6 +1,6 @@
 """RAG pipeline — chunk, embed, index, retrieve, generate.
 
-Reaproveita as funcoes do notebook 02. Voce vai preencher 3 TODOs aqui.
+Reaproveita as funcoes do notebook 02.
 """
 
 from __future__ import annotations
@@ -10,24 +10,34 @@ from pathlib import Path
 from typing import Any
 
 import chromadb
-from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
+from pypdf import PdfReader
+from sentence_transformers import SentenceTransformer
 
 
-def _make_client() -> tuple[OpenAI, str]:
+class LocalEmbeddingFunction(EmbeddingFunction):
+    """Embedding function using sentence-transformers (local, no API calls)."""
+
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+        self._model = SentenceTransformer(model_name)
+
+    def __call__(self, input: Documents) -> Embeddings:
+        return self._model.encode(list(input), show_progress_bar=False).tolist()
+
+
+def _make_client() -> OpenAI:
     """Inicializa cliente OpenAI-compatible conforme provider escolhido no .env."""
     if "GEMINI_API_KEY" in os.environ:
-        client = OpenAI(
+        return OpenAI(
             api_key=os.environ["GEMINI_API_KEY"],
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
-        embed_api_base = "https://generativelanguage.googleapis.com/v1beta/openai/"
     elif "OPENAI_API_KEY" in os.environ:
-        client = OpenAI()
-        embed_api_base = None
+        return OpenAI()
     else:
         raise RuntimeError("Configure GEMINI_API_KEY ou OPENAI_API_KEY no .env")
-    return client, embed_api_base
 
 
 class RAGPipeline:
@@ -41,17 +51,11 @@ class RAGPipeline:
         llm_model: str | None = None,
         embed_model: str | None = None,
     ) -> None:
-        self.client, embed_api_base = _make_client()
+        self.client = _make_client()
         self.llm_model = llm_model or os.environ.get("LLM_MODEL", "gemini-2.5-flash-lite")
-        self.embed_model = embed_model or os.environ.get("EMBED_MODEL", "gemini-embedding-001")
+        self.embed_model = embed_model or "all-MiniLM-L6-v2"
 
-        embed_kwargs: dict[str, Any] = {
-            "api_key": os.environ.get("GEMINI_API_KEY") or os.environ.get("OPENAI_API_KEY"),
-            "model_name": self.embed_model,
-        }
-        if embed_api_base:
-            embed_kwargs["api_base"] = embed_api_base
-        self.embed_fn = OpenAIEmbeddingFunction(**embed_kwargs)
+        self.embed_fn = LocalEmbeddingFunction(model_name=self.embed_model)
 
         self.corpus_dir = Path(corpus_dir)
         self.persist_dir = persist_dir
@@ -64,53 +68,103 @@ class RAGPipeline:
 
     # ------------------------------------------------------------------ TODO 1
     def ingest_and_index(self) -> int:
-        """Le PDFs de `corpus_dir`, faz chunking e indexa em Chroma.
+        """Le PDFs de corpus_dir, faz chunking e indexa em Chroma.
 
         Retorna numero de chunks indexados.
-
-        Ja deixei a estrutura do ciclo. Voce completa as 3 partes marcadas.
         """
-        # SEU CODIGO AQUI — TODO 1.A
-        # Iterar por todos os PDFs em self.corpus_dir.
-        # Para cada PDF, ler todas as paginas com PdfReader e extrair texto.
-        # Acumular numa lista `docs` com dicts: {"text": str, "source": str, "page": int}
-        # Dica: reaproveite o snippet do notebook 02 (Etapa 1 — Ingestao de PDFs).
+        pdfs = list(self.corpus_dir.glob("*.pdf"))
+        if not pdfs:
+            raise FileNotFoundError(
+                f"Nenhum PDF encontrado em {self.corpus_dir}. "
+                "Coloque seus documentos em data/corpus/"
+            )
+
         docs: list[dict] = []
+        for pdf_path in pdfs:
+            reader = PdfReader(str(pdf_path))
+            for i, page in enumerate(reader.pages, start=1):
+                text = page.extract_text()
+                if text and text.strip():
+                    docs.append({
+                        "text": text.strip(),
+                        "source": pdf_path.name,
+                        "page": i,
+                    })
 
-        # SEU CODIGO AQUI — TODO 1.B
-        # Aplicar RecursiveCharacterTextSplitter com chunk_size=800, overlap=100
-        # Quebrar cada doc em chunks e construir lista `chunks` com:
-        # {"id": unique_id, "text": str, "source": str, "page": int}
-        # Dica: reaproveite o notebook 02 (Etapa 2 — Chunking Recursivo).
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=800,
+            chunk_overlap=100,
+            separators=["\n\n", "\n", ".", " ", ""],
+        )
         chunks: list[dict] = []
+        for doc in docs:
+            texts = splitter.split_text(doc["text"])
+            for j, chunk_text in enumerate(texts):
+                chunk_id = f"{doc['source']}_p{doc['page']}_c{j}"
+                chunks.append({
+                    "id": chunk_id,
+                    "text": chunk_text,
+                    "source": doc["source"],
+                    "page": doc["page"],
+                })
 
-        # SEU CODIGO AQUI — TODO 1.C
-        # Adicionar chunks no Chroma via self.collection.add(ids=, documents=, metadatas=)
-        # Lembre de filtrar metadatas para conter apenas {source, page} (Chroma rejeita listas).
+        if chunks:
+            print(f"  Indexing {len(chunks)} chunks with local embeddings...")
+            self.collection.add(
+                ids=[c["id"] for c in chunks],
+                documents=[c["text"] for c in chunks],
+                metadatas=[{"source": c["source"], "page": c["page"]} for c in chunks],
+            )
 
         return self.collection.count()
 
     # ------------------------------------------------------------------ TODO 2
     def retrieve(self, query: str, k: int = 5) -> list[dict]:
         """Busca top-k chunks similares a query."""
-        # SEU CODIGO AQUI — TODO 2
-        # Usar self.collection.query(query_texts=[query], n_results=k)
-        # Retornar lista de dicts: {"text", "source", "page", "distance"}
-        # Dica: notebook 02, Etapa 4 — Retrieval.
-        raise NotImplementedError("TODO 2: implementar retrieve()")
+        results = self.collection.query(
+            query_texts=[query],
+            n_results=k,
+        )
+
+        hits: list[dict] = []
+        if not results["ids"] or not results["ids"][0]:
+            return hits
+
+        for i, doc_id in enumerate(results["ids"][0]):
+            hits.append({
+                "text": results["documents"][0][i],
+                "source": results["metadatas"][0][i]["source"],
+                "page": results["metadatas"][0][i]["page"],
+                "distance": results["distances"][0][i] if results.get("distances") else 0.0,
+            })
+
+        return hits
 
     # ------------------------------------------------------------------ TODO 3
     def answer(self, question: str, k: int = 5) -> dict:
         """Pipeline completo: retrieve + augment + generate. Retorna {answer, sources}."""
         hits = self.retrieve(question, k=k)
 
-        # SEU CODIGO AQUI — TODO 3
-        # 1. Montar contexto concatenando os textos dos hits com cabecalho [source:page]
-        # 2. Construir prompt com PROMPT_TEMPLATE (definido abaixo)
-        # 3. Chamar self.client.chat.completions.create(model=self.llm_model, ...)
-        # 4. Retornar {"answer": resposta, "sources": [(s, p) for h in hits]}
-        # Dica: notebook 02, Etapa 5 — Augment + Generate.
-        raise NotImplementedError("TODO 3: implementar answer()")
+        context_parts = []
+        for h in hits:
+            context_parts.append(
+                f"[{h['source']}:p{h['page']}]\n{h['text']}"
+            )
+        context = "\n\n".join(context_parts)
+
+        prompt = PROMPT_TEMPLATE.format(context=context, question=question)
+
+        response = self.client.chat.completions.create(
+            model=self.llm_model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+        )
+
+        answer_text = response.choices[0].message.content or ""
+
+        sources = [(h["source"], h["page"]) for h in hits]
+
+        return {"answer": answer_text, "sources": sources}
 
 
 PROMPT_TEMPLATE = """Voce e um assistente tecnico. Responda APENAS com base no contexto abaixo.
