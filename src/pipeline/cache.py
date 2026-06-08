@@ -1,6 +1,6 @@
 """Cache em 2 niveis: exact-match (SHA256) + semantic (cosine similarity).
 
-Reaproveita o notebook 05. Voce vai preencher 1 TODO aqui.
+Reaproveita o notebook 05.
 """
 
 from __future__ import annotations
@@ -42,7 +42,6 @@ class SemanticCache:
         self._embeddings: list[np.ndarray] = []
         self._answers: list[str] = []
 
-        # Inicializa cliente para embeddings (mesmo provider do RAG)
         if "GEMINI_API_KEY" in os.environ:
             self._client = OpenAI(
                 api_key=os.environ["GEMINI_API_KEY"],
@@ -63,14 +62,21 @@ class SemanticCache:
         if not self._queries:
             return None
 
-        # SEU CODIGO AQUI — TODO 5
-        # 1. Embedar a query (self._embed)
-        # 2. Calcular similaridade cosseno contra todos self._embeddings:
-        #    cos_sim = np.dot(e, em) / (np.linalg.norm(e) * np.linalg.norm(em))
-        # 3. Pegar idx do maior; se sims[idx] >= self.threshold, retornar self._answers[idx]
-        # 4. Caso contrario, retornar None
-        # Dica: notebook 05, Etapa 4 — Semantic Cache.
-        raise NotImplementedError("TODO 5: implementar SemanticCache.get()")
+        query_emb = self._embed(query)
+        best_sim = -1.0
+        best_idx = -1
+
+        for idx, stored_emb in enumerate(self._embeddings):
+            cos_sim = np.dot(query_emb, stored_emb) / (
+                np.linalg.norm(query_emb) * np.linalg.norm(stored_emb)
+            )
+            if cos_sim > best_sim:
+                best_sim = cos_sim
+                best_idx = idx
+
+        if best_sim >= self.threshold and best_idx >= 0:
+            return self._answers[best_idx]
+        return None
 
     def put(self, query: str, answer: str) -> None:
         self._queries.append(query)

@@ -1,10 +1,8 @@
-"""Streamlit UI — entrada principal do app. Pronta para deploy 1-click no Streamlit Cloud.
+"""Streamlit UI — Git Q&A Bot para o livro Pro Git.
 
-Voce nao precisa editar quase nada aqui — ja faz integracao com:
-- src.pipeline.rag (TODOs 1-3)
-- src.pipeline.cache (TODO 5)
-- src.pipeline.routing (TODO 6)
-- src.pipeline.tools (TODO 4, opcional)
+Integra pipeline RAG (TODOs 1-3), ferramenta lookup_chapter (TO DO 4),
+cache exato + semantico (TO DO 5), roteamento cheap-first (TO DO 6),
+e observabilidade via Langfuse.
 """
 
 from __future__ import annotations
@@ -22,17 +20,21 @@ load_dotenv(dotenv_path=_ROOT / ".env.local")
 
 import streamlit as st  # noqa: E402
 
-from src.observability.trace import trace, log_event  # noqa: E402
+from langfuse import Langfuse, observe  # noqa: E402
+
+from src.observability.trace import log_event  # noqa: E402
 from src.pipeline.cache import ExactCache, SemanticCache  # noqa: E402
 from src.pipeline.rag import build_rag_pipeline  # noqa: E402
 from src.pipeline.routing import classify_complexity  # noqa: E402
 
+# ---------------------------------------------------------------- Langfuse init
+langfuse = Langfuse()
 
 # ---------------------------------------------------------------- Streamlit UI
-st.set_page_config(page_title="Portfolio LLM Demo", page_icon=":robot:", layout="centered")
+st.set_page_config(page_title="Git Q&A Bot", page_icon=":robot:", layout="centered")
 
-st.title(":robot: TODO — Substitua pelo titulo do seu projeto")
-st.caption("TODO — Substitua: 1-sentence pitch do seu projeto")
+st.title(":books: Git Q&A Bot")
+st.caption("Assistente RAG para o livro Pro Git — pergunte, cite, aprenda.")
 
 
 # Inicializacao lazy de pipeline + caches
@@ -64,69 +66,68 @@ with st.sidebar:
     st.metric("Exact cache", exact_cache.stats()["size"])
     st.metric("Semantic cache", semantic_cache.stats()["size"])
 
-    if st.button("Limpar caches"):
-        get_exact_cache.clear()
-        get_semantic_cache.clear()
-        st.success("Caches limpos. Recarregue a pagina.")
+
+# ---------------------------------------------------------------- handler com @observe()
+@observe(name="rag_query", capture_input=True, capture_output=True)
+def handle_query(query: str) -> dict:
+    """Executa pipeline completo: cache → routing → RAG → cache write."""
+    # 1. Exact cache
+    cached = exact_cache.get(query)
+    if cached:
+        log_event("cache_hit", layer="exact")
+        return {"answer": cached, "source": "exact_cache"}
+
+    # 2. Semantic cache
+    try:
+        cached = semantic_cache.get(query)
+        if cached:
+            log_event("cache_hit", layer="semantic")
+            return {"answer": cached, "source": "semantic_cache"}
+    except NotImplementedError:
+        pass
+
+    # 3. Routing
+    try:
+        decision = classify_complexity(query)
+    except NotImplementedError:
+        decision = None
+
+    # 4. RAG
+    result = pipeline.answer(query)
+
+    # 5. Cache write
+    exact_cache.put(query, result["answer"])
+    semantic_cache.put(query, result["answer"])
+
+    return result
 
 
-# Main — chat interface
-query = st.text_input("Sua pergunta:", placeholder="Pergunte algo sobre o corpus indexado...")
+# ---------------------------------------------------------------- chat loop
+query = st.text_input(
+    "Sua pergunta:",
+    placeholder="Ex: O que e Git? | Explique merge e rebase | Resuma o capitulo 3",
+)
 
 if query:
-    with trace("query_handle", query=query) as ctx:
-        trace_id = ctx["trace_id"]
+    result = handle_query(query)
+    source = result.get("source")
 
-        # 1. Exact cache
-        cached = exact_cache.get(query)
-        if cached:
-            st.success("Cache hit (exact)")
-            st.write(cached)
-            log_event("cache_hit", trace_id=trace_id, layer="exact")
-            st.stop()
-
-        # 2. Semantic cache
-        try:
-            cached = semantic_cache.get(query)
-        except NotImplementedError:
-            cached = None
-            st.warning("Semantic cache nao implementado (TODO 5). Caindo no LLM real.")
-
-        if cached:
-            st.success("Cache hit (semantic)")
-            st.write(cached)
-            log_event("cache_hit", trace_id=trace_id, layer="semantic")
-            st.stop()
-
-        # 3. Pipeline RAG + Routing
-        try:
-            decision = classify_complexity(query)
-            st.info(f"Routing: {decision.complexity} -> {decision.model}")
-            log_event("route_decision", trace_id=trace_id, **decision.__dict__)
-        except NotImplementedError:
-            st.warning("Routing nao implementado (TODO 6). Usando modelo default.")
-
-        try:
-            result = pipeline.answer(query)
-        except NotImplementedError as e:
-            st.error(f"Pipeline nao implementado: {e}")
-            st.info("Implemente TODOs 1-3 em `src/pipeline/rag.py` para destravar.")
-            st.stop()
-
-        # 4. Renderiza + cacheia
+    if source == "exact_cache":
+        st.success("Cache hit (exact)")
+        st.write(result["answer"])
+    elif source == "semantic_cache":
+        st.success("Cache hit (semantic)")
+        st.write(result["answer"])
+    else:
         st.write(result["answer"])
         if result.get("sources"):
             with st.expander("Fontes citadas"):
-                for source, page in result["sources"]:
-                    st.write(f"- `{source}:p{page}`")
-
-        exact_cache.put(query, result["answer"])
-        semantic_cache.put(query, result["answer"])
-        log_event("answer_generated", trace_id=trace_id, sources=len(result.get("sources", [])))
+                for src, page in result["sources"]:
+                    st.write(f"- `{src}:p{page}`")
 
 
 st.divider()
 st.caption(
-    "TODO README — substitua por: problem statement, arquitetura, custo/latencia, decisoes de design. "
-    "Veja `README.md` do projeto para a estrutura completa."
+    "Pro Git Q&A Bot — Portifolio | "
+    "Desenvolvendo Software com IA Generativa | TIC 44 - CTE - IA - UFC"
 )

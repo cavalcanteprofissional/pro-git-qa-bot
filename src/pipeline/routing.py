@@ -1,6 +1,6 @@
 """Model routing cheap-first com fallback.
 
-Reaproveita o notebook 05. Voce vai preencher 1 TODO aqui.
+Reaproveita o notebook 05.
 """
 
 from __future__ import annotations
@@ -14,8 +14,17 @@ from openai import OpenAI
 @dataclass(frozen=True)
 class RouteDecision:
     model: str
-    complexity: str  # "simple" | "complex"
+    complexity: str
     reason: str
+
+
+COMPLEX_KEYWORDS = [
+    "explique", "compare", "analise", "projete", "diferença", "diferença",
+    "por que", "como funciona", "detalhe", "exemplo prático",
+    "arquitetura", "implemente", "desenhe", "relacione",
+    "vantagens e desvantagens", "prós e contras", "quando usar",
+    "contraste", "elabore", "discurse", "fundamento",
+]
 
 
 # ------------------------------------------------------------------ TODO 6
@@ -27,15 +36,28 @@ def classify_complexity(query: str) -> RouteDecision:
     cheap_model = os.environ.get("CHEAP_MODEL", "gemini-2.5-flash-lite")
     premium_model = os.environ.get("PREMIUM_MODEL", "gemini-2.5-pro")
 
-    # SEU CODIGO AQUI — TODO 6
-    # Implemente heuristica simples para classificar a query como "simple" ou "complex".
-    # Sugestao de regras:
-    #   - len(query) < 60 e query termina em "?" → simple
-    #   - contem palavras como "explique", "compare", "analise", "projete" → complex
-    #   - default → simple
-    # Retorne RouteDecision(model=cheap_model OU premium_model, complexity=..., reason="por que")
-    # Dica: notebook 05, Etapa 5 — Model Routing.
-    raise NotImplementedError("TODO 6: implementar classify_complexity()")
+    q_lower = query.lower().strip()
+
+    if len(q_lower) < 60 and q_lower.endswith("?"):
+        return RouteDecision(
+            model=cheap_model,
+            complexity="simple",
+            reason="Query curta e interrogativa → cheap model",
+        )
+
+    for keyword in COMPLEX_KEYWORDS:
+        if keyword in q_lower:
+            return RouteDecision(
+                model=premium_model,
+                complexity="complex",
+                reason=f"Query contém palavra-chave '{keyword}' → premium model",
+            )
+
+    return RouteDecision(
+        model=cheap_model,
+        complexity="simple",
+        reason="Query não classifica como complexa → cheap model (default)",
+    )
 
 
 def make_client() -> OpenAI:

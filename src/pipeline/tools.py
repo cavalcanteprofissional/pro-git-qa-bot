@@ -1,6 +1,6 @@
 """Function-calling / tool-use — registro de tools usadas pelo agente.
 
-Reaproveita o LAB-001. Voce vai preencher 1 TODO aqui (sua tool especifica).
+Reaproveita o LAB-001.
 """
 
 from __future__ import annotations
@@ -9,55 +9,60 @@ import json
 from typing import Any, Callable
 
 
-# ============================================================================
-# TODO 4 — Sua tool especifica do dominio
-# ============================================================================
-# Cada projeto precisa de UMA tool customizada que faca sentido para o problema.
-# Exemplos por dominio:
-#   - Livro tecnico:    lookup_chapter(chapter: int) -> str
-#   - Changelog:        check_compat(lib: str, version: str) -> dict
-#   - Podcast:          get_timestamp(quote: str) -> str
-#   - Codigo:           run_snippet(code: str) -> str  (sandboxed)
-#   - Documentos legais: cite_article(law: str, article: int) -> str
-#
-# 1. Implemente a funcao Python real abaixo (substitua o exemplo)
-# 2. Adicione o schema JSON em TOOLS abaixo
-# 3. Registre em TOOL_REGISTRY
-# ============================================================================
+CHAPTERS = {
+    1: "Getting Started — About version control, Git history, Git basics, command-line setup, first-time config, getting help.",
+    2: "Git Basics — Initializing a repo, staging files, committing, viewing history, undoing things, remotes, tagging, aliases.",
+    3: "Git Branching — Branches in a nutshell, basic branch/merge, branch management, workflows, remote branches, rebasing.",
+    4: "Git on the Server — Protocols (local, HTTP, SSH, Git), setting up a server, generating SSH keys, Git daemon, smart HTTP, GitWeb, hosting options.",
+    5: "Distributed Git — Distributed workflows, contributing to a project, maintaining a project, signed commits, shortlog.",
+    6: "GitHub — Account setup, SSH config, contributing to projects (fork/clone/PR), maintaining a project on GitHub, GitHub Pages.",
+    7: "Git Tools — Revision selection, interactive staging, stashing, signing, searching, rewriting history, reset/diff, bundling, replace, credential storage.",
+    8: "Customizing Git — Git config, gitattributes, git hooks, forced commit policies, environment variables.",
+    9: "Git and Other Systems — Git as a client (SVN, Mercurial), migrating to Git from other VCSs.",
+    10: "Git Internals — Plumbing and porcelain, Git objects (blob, tree, commit, tag), packfiles, refspecs, transfer protocols, maintenance.",
+    11: "Appendix A: Git in Other Environments — Git in GUI (macOS, Windows, VS Code), Git in IntelliJ, Git in Sublime Text, Git in Bash/Zsh, Git in PowerShell.",
+    12: "Appendix B: Embedding Git — Git in CLI applications (libgit2, rugged, go-git), JGit (Java), Dulwich (Python).",
+    13: "Appendix C: Git Commands — Reference of every Git command organized by category: setup, create, branch/share, inspect, patch/debug, admin, plumbing.",
+}
 
 
-# SEU CODIGO AQUI — TODO 4
-def my_domain_tool(arg1: str) -> str:
-    """Substitua esta funcao pela sua tool especifica.
-
-    A funcao deve receber argumentos primitivos (str, int, float, bool) e
-    retornar string com o resultado (sera passado de volta ao LLM como tool result).
-    """
-    return f"TODO: implementar tool para o argumento: {arg1}"
+def lookup_chapter(chapter: int) -> str:
+    """Retorna o sumário do capítulo N do Pro Git."""
+    if chapter not in CHAPTERS:
+        return (
+            f"Capítulo {chapter} não encontrado. "
+            f"Capítulos disponíveis: {', '.join(str(k) for k in sorted(CHAPTERS))}."
+        )
+    return CHAPTERS[chapter]
 
 
 TOOLS: list[dict[str, Any]] = [
-    # SEU CODIGO AQUI — TODO 4 (continuacao)
-    # Adicione o schema JSON da sua tool. Modelo (referencia LAB-001):
-    # {
-    #     "type": "function",
-    #     "function": {
-    #         "name": "my_domain_tool",
-    #         "description": "Descrever o que a tool faz em pt-BR — LLM le isso para decidir quando usar",
-    #         "parameters": {
-    #             "type": "object",
-    #             "properties": {
-    #                 "arg1": {"type": "string", "description": "..."},
-    #             },
-    #             "required": ["arg1"],
-    #         },
-    #     },
-    # },
+    {
+        "type": "function",
+        "function": {
+            "name": "lookup_chapter",
+            "description": (
+                "Retorna o sumário de um capítulo do livro Pro Git. "
+                "Use quando o usuário pedir resumo de capítulo, "
+                "navegação entre capítulos, ou referência a seções do livro."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "chapter": {
+                        "type": "integer",
+                        "description": "Número do capítulo (1 a 13)",
+                    },
+                },
+                "required": ["chapter"],
+            },
+        },
+    },
 ]
 
 
 TOOL_REGISTRY: dict[str, Callable[..., str]] = {
-    # "my_domain_tool": my_domain_tool,
+    "lookup_chapter": lookup_chapter,
 }
 
 

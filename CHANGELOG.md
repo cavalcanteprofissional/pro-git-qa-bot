@@ -21,17 +21,17 @@
 
 ## Fase 2 — Tool + Cache + Routing (TODOs 4-6)
 
-- [ ] TODO 4 — `lookup_chapter` implementado
-- [ ] TODO 5 — `SemanticCache.get` implementado
-- [ ] TODO 6 — `classify_complexity` implementado
+- [x] TODO 4 — `lookup_chapter` implementado (capítulos 1-13 do Pro Git)
+- [x] TODO 5 — `SemanticCache.get` implementado (cosine similarity com threshold)
+- [x] TODO 6 — `classify_complexity` implementado (heurística cheap/premium)
 
 ## Fase 3 — UI + Deploy
 
-- [ ] 3.1 — `streamlit_app.py` personalizado
-- [ ] 3.2 — Langfuse `@observe()` integrado
-- [ ] 3.3 — Teste local funcionando
-- [ ] 3.4 — Repositório no GitHub
-- [ ] 3.5 — Deploy no Streamlit Cloud
+- [x] 3.1 — `streamlit_app.py` personalizado (título + slogan)
+- [x] 3.2 — Langfuse `@observe()` integrado
+- [x] 3.3 — Teste local funcionando (streamlit boots sem erros)
+- [ ] 3.4 — Repositório no GitHub (aguardando permissão)
+- [ ] 3.5 — Deploy no Streamlit Cloud (após push)
 
 ## Fase 4 — README + Documentação
 
