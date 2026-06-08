@@ -1,0 +1,20 @@
+.env
+.env.local
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+.ipynb_checkpoints/
+
+# Dados e cache
+data/chroma/
+data/cache/
+*.log
+
+# Eval results — descomente para versionar
+# evals/results-*.json
+
+# Briefing do projeto (PDF e markdown extraído)
+projeto-portfolio.pdf
+projeto-portfolio.md
