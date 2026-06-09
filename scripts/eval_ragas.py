@@ -7,6 +7,7 @@ Uso:
 from __future__ import annotations
 
 import json
+import math
 import os
 import sys
 import time
@@ -25,6 +26,7 @@ sys.path.insert(0, str(_ROOT))
 load_dotenv(dotenv_path=_ROOT / ".env.local")
 
 from langchain_openai import ChatOpenAI  # noqa: E402
+from langchain_community.embeddings import HuggingFaceEmbeddings  # noqa: E402
 from datasets import Dataset  # noqa: E402
 import ragas  # noqa: E402
 from ragas.metrics import (  # noqa: E402
@@ -32,6 +34,8 @@ from ragas.metrics import (  # noqa: E402
     answer_relevancy,
     context_precision,
 )
+from ragas.embeddings.base import LangchainEmbeddingsWrapper  # noqa: E402
+from ragas.llms.base import RunConfig  # noqa: E402
 
 from src.pipeline.rag import build_rag_pipeline  # noqa: E402
 from src.observability.trace import log_event  # noqa: E402
@@ -120,13 +124,36 @@ def run_evaluation() -> dict:
     # Monta dataset HuggingFace
     ds = Dataset.from_list(samples)
 
-    # LLM juiz via Gemini no endpoint OpenAI-compatible
-    llm = ChatOpenAI(
-        model="gemini-2.5-flash-lite",
-        api_key=os.environ["GEMINI_API_KEY"],
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        temperature=0.0,
+    # LLM juiz via GROQ (free tier, TPM 6K com max_workers=1 serializado)
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if groq_key:
+        from ragas.llms.base import LangchainLLMWrapper as LLMWrapper
+        raw_llm = ChatOpenAI(
+            model="qwen/qwen3-32b",
+            api_key=groq_key,
+            base_url="https://api.groq.com/openai/v1",
+            temperature=0.0,
+        )
+        # Pre-wrap com parser leniente (GROQ pode retornar finish_reason variado)
+        llm = LLMWrapper(
+            raw_llm,
+            run_config=RunConfig(timeout=300, max_retries=5, max_workers=1),
+            is_finished_parser=lambda _: True,
+        )
+    else:
+        # Fallback: Gemini (quota limitada a 20 req/dia)
+        llm = ChatOpenAI(
+            model="gemini-2.5-flash-lite",
+            api_key=os.environ["GEMINI_API_KEY"],
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            temperature=0.0,
+        )
+
+    # Embeddings locais (mesmo modelo usado no pipeline RAG)
+    hf_embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
     )
+    embeddings = LangchainEmbeddingsWrapper(hf_embeddings)
 
     print("\nCalculando metricas RAGAS (faithfulness, answer_relevancy, context_precision)...")
     print("  Isso pode levar alguns minutos (LLM juiz consume cota extra)...")
@@ -136,12 +163,21 @@ def run_evaluation() -> dict:
             ds,
             metrics=[faithfulness, answer_relevancy, context_precision],
             llm=llm,
+            embeddings=embeddings,
+            run_config=RunConfig(timeout=300, max_retries=5, max_workers=1),
         )
 
+        def _mean_score(values: list) -> float | None:
+            """Media de valores nao-NaN/None. Retorna None se vazio."""
+            clean = [v for v in values if v is not None and not (isinstance(v, float) and math.isnan(v))]
+            if not clean:
+                return None
+            return round(sum(clean) / len(clean), 4)
+
         scores = {
-            "faithfulness": round(result["faithfulness"], 4),
-            "answer_relevancy": round(result["answer_relevancy"], 4),
-            "context_precision": round(result["context_precision"], 4),
+            "faithfulness": _mean_score(result["faithfulness"]),
+            "answer_relevancy": _mean_score(result["answer_relevancy"]),
+            "context_precision": _mean_score(result["context_precision"]),
             "num_queries": len(samples),
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }

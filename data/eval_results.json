@@ -1,0 +1,8 @@
+{
+  "faithfulness": null,
+  "answer_relevancy": 0.4833,
+  "context_precision": 0.5552,
+  "num_queries": 14,
+  "timestamp": "2026-06-09T10:56:11",
+  "note": "Faithfulness NAO disponivel \u2014 necessita mais tokens que o free tier GROQ/ Gemini permite. Resposta aqui quando executar com tier pago ou apos reset."
+}
