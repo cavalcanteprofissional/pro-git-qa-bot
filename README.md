@@ -98,9 +98,13 @@ Corpus pequeno (1.447 chunks de um único livro). O retrieve top-5 já retorna c
 
 ## Limitations
 
-1. **Corpus fixo de 501 páginas.** O sistema só responde com base no Pro Git. Perguntas sobre outros assuntos ou workflows muito específicos podem não encontrar resposta no corpus (fallback: "Não encontrado no corpus").
-2. **Rate limit do Gemini free tier:** 10 requisições/minuto para `gemini-2.5-flash-lite` e 1.000 requisições/dia para embeddings. Em cenário de múltiplos usuários simultâneos, o app pode falhar com 429. Solução: upgrade para tier pago ou usar OpenAI como fallback.
-3. **Sem suporte a upload de PDF.** O corpus é fixo em `data/corpus/progit.pdf`. O app não permite que o usuário faça upload de novos documentos — limitação da demo, não da arquitetura RAG.
+1. **Consultas muito genéricas falham no retrieve.** Perguntas como "O que é Git?" retornam *"Não encontrado no corpus"* porque a busca vetorial no Chroma busca similaridade semântica com chunks específicos (800 caracteres) — questões conceituais muito amplas não têm correspondência direta com nenhum chunk. O sistema funciona bem para perguntas específicas ("Como criar um branch?", "Diferença entre merge e rebase"), mas não para definições abstratas de alto nível. Uma abordagem híbrida (BM25 + vetorial) ou fallback com sumário gerado por capítulo mitigaria isso.
+
+2. **Cota real do Gemini free tier é imprevisível.** A documentação oficial indica 1.500 req/dia para `flash-lite`, mas a conta utilizada apresentou limite de **20 req/dia** (observado empiricamente via erro 429 com `quotaValue: '20'`). O sistema não sustenta uso contínuo sem upgrade para tier pago. Isso afeta tanto o chat quanto a avaliação RAGAS, que consome chamadas extras para o LLM juiz.
+
+3. **Embedding monolíngue Inglês para corpus em Inglês com queries em Português.** O modelo `all-MiniLM-L6-v2` é treinado predominantemente em texto Inglês. O corpus do Pro Git é em Inglês, mas a UI aceita perguntas em Português. Embora o Gemini consiga responder em Português (a geração é multilíngue), o **retrieve** pode degradar: a query em Português pode não encontrar os chunks Ingleses mais relevantes porque o embedding não captura bem similaridade cross-lingual. Um modelo bilíngue como `multilingual-MiniLM-L12-v2` ou `BAAI/bge-m3` resolveria, mas aumentaria o tempo de inferência local.
+
+4. **Corpus fixo de 501 páginas.** O sistema só responde com base no Pro Git. Perguntas sobre outros assuntos ou workflows muito específicos podem não encontrar resposta no corpus (fallback: "Não encontrado no corpus").
 
 ## Tech stack
 
