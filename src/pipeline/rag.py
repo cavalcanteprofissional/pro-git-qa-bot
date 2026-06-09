@@ -179,9 +179,12 @@ class RAGPipeline:
         if model == self.premium_model and self._gemini:
             client = self._gemini
             model_name = self.premium_model
-        else:
-            client = self._groq or self._gemini
+        elif self._groq:
+            client = self._groq
             model_name = model or self.cheap_model
+        else:
+            client = self._gemini
+            model_name = model if model in ("gemini-2.5-pro", "gemini-2.5-flash-lite") else "gemini-2.5-flash-lite"
 
         try:
             response = client.chat.completions.create(
