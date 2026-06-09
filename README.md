@@ -2,7 +2,7 @@
 
 > Assistente RAG para o livro **Pro Git** (Scott Chacon & Ben Straub) — pergunte sobre versionamento com Git em linguagem natural e receba respostas com citação do capítulo e página.
 
-<!-- TODO: cole aqui o GIF de demo (10-15s, <5MB) gerado com OBS/peek -->
+![Demo](assets/demo.gif)
 
 **Live demo:** https://pro-git-app-bot-owjnuwabjucpds3nannzwh.streamlit.app/
 
