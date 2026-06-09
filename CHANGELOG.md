@@ -45,10 +45,10 @@
 
 ## Fase 5 — Testes e Polish
 
-- [ ] 5.1 — Smoke tests passando
-- [ ] 5.2 — 3 perguntas de teste validadas
-- [ ] 5.3 — Tool `lookup_chapter` testada
-- [ ] 5.4 — Cache hit-rate e routing verificados
+- [x] 5.1 — Smoke tests passando (3/3)
+- [x] 5.2 — 3 perguntas de teste validadas
+- [x] 5.3 — Tool `lookup_chapter` testada (cap 1, 3, 7)
+- [x] 5.4 — Cache e routing verificados
 
 ## Fase 6 — Entrega
 
