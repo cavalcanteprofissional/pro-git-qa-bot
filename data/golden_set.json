@@ -1,0 +1,72 @@
+[
+  {
+    "question": "O que é Git?",
+    "ground_truth": "Git é um sistema de controle de versão distribuído, criado por Linus Torvalds em 2005. Ele permite que múltiplos desenvolvedores trabalhem no mesmo projeto simultaneamente, mantendo um histórico completo de alterações. Diferente de sistemas centralizados como SVN, cada desenvolvedor tem uma cópia completa do repositório.",
+    "expected_topic": "cap 1"
+  },
+  {
+    "question": "Para que serve o Git?",
+    "ground_truth": "Git serve para controlar versões de arquivos, principalmente código-fonte. Ele permite rastrear alterações, voltar a versões anteriores, trabalhar em branches paralelos, colaborar com outros desenvolvedores via repositórios remotos, e manter um histórico completo de quem fez o quê e quando.",
+    "expected_topic": "cap 1"
+  },
+  {
+    "question": "Como criar um branch no Git?",
+    "ground_truth": "Para criar um branch no Git, usa-se o comando 'git branch <nome-do-branch>'. Isso cria um novo ponteiro para o commit atual. Para criar e já mudar para o novo branch, usa-se 'git checkout -b <nome>' ou 'git switch -c <nome>'. Branches são leves no Git — apenas um ponteiro de 41 bytes para um commit.",
+    "expected_topic": "cap 3"
+  },
+  {
+    "question": "O que é um commit?",
+    "ground_truth": "Um commit no Git é um snapshot do projeto em um determinado momento. Cada commit tem um hash SHA-1 único que identifica aquele snapshot. Commits formam um grafo acíclico dirigido (DAG), onde cada commit aponta para seu commit pai e para o conteúdo (tree object) que representa o estado dos arquivos.",
+    "expected_topic": "cap 1"
+  },
+  {
+    "question": "Como clonar um repositório?",
+    "ground_truth": "Usa-se 'git clone <url>' para clonar um repositório remoto. O comando baixa todo o histórico do projeto, cria um remote chamado 'origin' apontando para a URL original, e faz checkout automático do branch padrão. Para clonar em um diretório específico: 'git clone <url> <diretorio>'.",
+    "expected_topic": "cap 2"
+  },
+  {
+    "question": "O que é o staging area?",
+    "ground_truth": "O staging area (ou index) é uma área intermediária entre o working directory e o repositório. Ela permite preparar quais alterações serão incluídas no próximo commit. Usa-se 'git add' para adicionar arquivos ao staging e 'git status' para ver o que está staged, modified ou untracked.",
+    "expected_topic": "cap 2"
+  },
+  {
+    "question": "Como ver o histórico de commits?",
+    "ground_truth": "Usa-se 'git log' para ver o histórico de commits. O comando mostra o hash, autor, data e mensagem de cada commit. Variações incluem 'git log --oneline' (resumo compacto), 'git log --graph' (visualização em árvore), 'git log --author=<nome>' (filtrar por autor), e 'git log -p' (mostrar o diff de cada commit).",
+    "expected_topic": "cap 2"
+  },
+  {
+    "question": "Explique a diferença entre merge e rebase",
+    "ground_truth": "Merge e rebase são duas formas de integrar mudanças de um branch em outro. Merge cria um novo commit de merge que conecta as duas linhas do histórico, preservando a ordem cronológica exata. Rebase reescreve o histórico aplicando os commits de um branch sobre a ponta de outro, resultando em um histórico linear. A regra prática é: use rebase para branches locais antes de compartilhar, e use merge para integrar branches públicos já compartilhados.",
+    "expected_topic": "cap 3"
+  },
+  {
+    "question": "Como funciona o git stash?",
+    "ground_truth": "Git stash permite salvar temporariamente alterações não commitadas no working directory para limpar o diretório de trabalho sem perder o progresso. 'git stash' salva as alterações e reverte os arquivos ao estado do último commit. 'git stash pop' recupera as alterações salvas. 'git stash list' mostra todos os stashes. É útil quando você precisa mudar de branch rapidamente mas não quer commitar código incompleto.",
+    "expected_topic": "cap 7"
+  },
+  {
+    "question": "O que são git hooks e como usá-los?",
+    "ground_truth": "Git hooks são scripts que executam automaticamente em pontos específicos do ciclo de vida do Git. Eles ficam em '.git/hooks/' e podem ser escritos em qualquer linguagem (bash, python, etc). Exemplos: pre-commit (roda antes de cada commit), post-commit (após commit), pre-push (antes do push). São usados para validações, linting, testes automáticos, etc. Para ativar um hook, basta criar um arquivo executável com o nome correto na pasta hooks.",
+    "expected_topic": "cap 8"
+  },
+  {
+    "question": "Explique a diferença entre git reset, git revert e git checkout",
+    "ground_truth": "Git reset move o ponteiro do branch e opcionalmente altera o staging area e o working directory, sendo perigoso para commits já compartilhados. Git revert cria um novo commit que desfaz as alterações de um commit anterior — seguro para histórico público porque não reescreve o passado. Git checkout (ou git switch/restore) troca de branch ou restaura arquivos sem alterar o histórico de commits.",
+    "expected_topic": "cap 7"
+  },
+  {
+    "question": "Como configurar um servidor Git próprio?",
+    "ground_truth": "Para configurar um servidor Git próprio, você pode usar: (1) protocolo Git — criar um repositório bare ('git init --bare') e compartilhar via ssh ou git://; (2) HTTP/HTTPS — configurar um servidor web com Git Smart HTTP; (3) Git daemon — servidor leve para acesso anônimo de leitura. A opção mais comum é usar SSH: crie um usuário git, adicione chaves SSH dos desenvolvedores, e compartilhe repositórios bare.",
+    "expected_topic": "cap 4"
+  },
+  {
+    "question": "Resuma o capítulo 3 do Pro Git",
+    "ground_truth": "O capítulo 3 — Git Branching — cobre: branches em poucas palavras (o que são ponteiros para commits), criação e merge de branches, gerenciamento de branches (listar, deletar, renomear), fluxos de trabalho com branches (long-running vs topic branches), branches remotos (tracking, push, pull), e rebasing (como e quando usar rebase vs merge).",
+    "expected_topic": "cap 3"
+  },
+  {
+    "question": "O que é abordado no capítulo 7 do Pro Git?",
+    "ground_truth": "O capítulo 7 — Git Tools — cobre: seleção de revisões (intervalos, ancestrais), staging interativo (git add -i, git add -p), stashing (git stash), assinatura de commits (signing), busca no histórico (git grep, git log -S), reescrita de história (rebase interativo, filter-branch), reset/diff demystified, bundling (git bundle), replace (git replace), e armazenamento de credenciais.",
+    "expected_topic": "cap 7"
+  }
+]

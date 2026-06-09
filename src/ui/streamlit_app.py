@@ -66,6 +66,29 @@ with st.sidebar:
     st.metric("Exact cache", exact_cache.stats()["size"])
     st.metric("Semantic cache", semantic_cache.stats()["size"])
 
+    # --- RAGAS Evaluation (cached results) ---
+    st.divider()
+    st.subheader("📊 RAGAS Evaluation")
+
+    _eval_file = _ROOT / "data" / "eval_results.json"
+    if _eval_file.exists():
+        try:
+            import json
+            with open(_eval_file, encoding="utf-8") as _fh:
+                _eval_data = json.load(_fh)
+            if _eval_data.get("faithfulness") is not None:
+                _cols = st.columns(3)
+                _cols[0].metric("Faithfulness", f"{_eval_data['faithfulness']:.2%}")
+                _cols[1].metric("Answer Relevance", f"{_eval_data['answer_relevancy']:.2%}")
+                _cols[2].metric("Context Precision", f"{_eval_data['context_precision']:.2%}")
+                st.caption(f"{_eval_data['num_queries']} queries · {_eval_data.get('timestamp', '')[:10]}")
+            else:
+                st.warning(f"Avaliação pendente: {_eval_data.get('error', 'erro desconhecido')}")
+        except Exception as _e:
+            st.warning(f"Erro ao ler avaliação: {_e}")
+    else:
+        st.info("Avaliação não executada. Rode `scripts/eval_ragas.py` manualmente (consome cota Gemini).")
+
 
 # ---------------------------------------------------------------- handler com @observe()
 @observe(name="rag_query", capture_input=True, capture_output=True)

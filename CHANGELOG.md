@@ -56,6 +56,15 @@
 - [ ] 6.2 — 3 URLs confirmadas
 - [ ] 6.3 — Forms enviado
 
+## Fase 7 — RAGAS Evaluation (ongoing)
+
+- [x] 7.1 — `ragas` instalado no .venv (0.3.9)
+- [x] 7.2 — Golden set criado (14 queries + ground_truth)
+- [x] 7.3 — Compat shim para langchain-community >= 0.4
+- [x] 7.4 — Script `scripts/eval_ragas.py` com backoff + salvamento incremental
+- [x] 7.5 — Dashboard RAGAS no Streamlit sidebar (lê `data/eval_results.json`)
+- [ ] 7.6 — Execução completa (aguardando reset da cota Gemini — 20 req/dia)
+
 ---
 
 ## Bugs encontrados
