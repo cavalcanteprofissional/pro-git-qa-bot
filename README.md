@@ -138,6 +138,62 @@ pro-git-qa-bot/
 | Custo | 20% | Cache 2 niveis + routing cheap-first. Reducao estimada ≥50% nas chamadas premium |
 | Demo | 10% | URL publica acessivel: [streamlit.app](https://pro-git-app-bot-owjnuwabjucpds3nannzwh.streamlit.app/) |
 
----
+## RAGAS Evaluation
 
-*Projeto portifolio — Disciplina "Desenvolvendo Software com IA Generativa" (TIC 44 - CTE - IA - UFC). Junho/2026.*
+A avaliação quantitativa usa o [RAGAS](https://docs.ragas.io/) framework com um golden set de **14 queries** cobrindo perguntas simples, complexas e estruturais (tool `lookup_chapter`). O processo:
+
+1. **Golden set** — `data/golden_set.json` com 14 pares (pergunta, ground_truth) extraídos do conteúdo do Pro Git
+2. **Pipeline execution** — cada query passa pelo pipeline completo (retrieve + answer) com delay de 10s entre chamadas para respeitar o rate limit do Gemini free tier (20 req/dia)
+3. **LLM judge** — as métricas `faithfulness`, `answer_relevancy` e `context_precision` são calculadas usando `gemini-2.5-flash-lite` via endpoint OpenAI-compatible como modelo juiz
+4. **Resultados** — salvos em `data/eval_results.json` e exibidos no dashboard do Streamlit
+
+Para executar:
+```bash
+uv run python scripts/eval_ragas.py
+```
+O script faz **exponential backoff** em caso de rate limit e **salvamento incremental** (`data/eval_samples.json`) — pode ser interrompido e retomado quando a cota resetar.
+
+## Q&A — Decisões do Projeto
+
+### 1. Qual problema concreto vocês resolveram?
+**Domínio:** Engenharia de software — sistema de controle de versão Git.
+**Persona-alvo:** Estudantes de computação aprendendo Git, profissionais migrando de SVN, e desenvolvedores que usam Git no dia a dia.
+**Por que LLM + RAG:** Busca textual simples não entende paráfrases. LLM sozinho alucina. RAG resolve ambos: retrieve busca chunks semânticos no corpus oficial, LLM gera resposta grounded com citação `[arquivo:página]`. Tool-use complementa com `lookup_chapter` para consultas estruturais.
+**3 perguntas representativas:**
+- "O que é Git e para que serve?" — conceitual simples → flash-lite
+- "Explique a diferença entre merge e rebase" — comparativa complexa → pro
+- "Como criar um branch no Git?" — procedural → retrieve cap. 3
+
+### 2. Descrição do corpus
+- **Fonte:** https://git-scm.com/book/en/v2 — Pro Git, Scott Chacon & Ben Straub
+- **Documentos:** 1 PDF (`data/corpus/progit.pdf`)
+- **Tamanho:** 18 MB, 501 páginas
+- **Idioma:** Inglês
+- **Licença:** Creative Commons BY-NC-SA 3.0 (open-source)
+- **Modalidade A (corpus próprio):** Substituímos os PDFs placeholder do template pelo livro oficial do Git, gerando 1.447 chunks indexados no Chroma.
+
+### 3. Tool de domínio implementada
+**`lookup_chapter(chapter: int) -> str`** — retorna o sumário do capítulo N do Pro Git (1 a 13).
+**Problema:** Perguntas como "Resuma o capítulo 3" têm baixa similaridade semântica com chunks do capítulo, falhando no retrieve vetorial.
+**Por que function-calling > pure-prompt:** Com pure-prompt, os 13 sumários (~2.000 tokens) estariam no contexto de toda requisição, mesmo quando irrelevantes. Function-calling permite que o LLM **decida quando** chamar a tool, mantendo o contexto enxuto.
+
+### 4. Custo médio por requisição
+**USD $0,00** — Gemini free tier. O consumo é medido em **cota diária**:
+
+| Modelo | Cota gratuita/dia | Consumo por query |
+|---|---|---|
+| `gemini-2.5-flash-lite` | 1.500 RPD | 0,067% da cota |
+| `gemini-2.5-pro` | 50 RPD | 2% da cota |
+
+Com roteamento cheap-first (70% flash-lite, 30% pro): **~10,6% da cota free/dia** para 50 queries típicas.
+
+### 5. Percentual de redução de custo
+**78,1%** — calculado sobre custo equivalente em tier pago. Baseline (100% pro a $0,003/query) = $0,30/100 queries. Com cache (35% hit, zero LLM) + routing (70% das misses em flash-lite a $0,00016/query), o custo médio cai para $0,00066/query.
+
+### 6. Métricas RAGAS
+As métricas `faithfulness`, `answer_relevancy` e `context_precision` são calculadas via `scripts/eval_ragas.py` usando o golden set de 14 queries. O LLM juiz é o mesmo `gemini-2.5-flash-lite`. **A execução completa depende da cota diária do Gemini free tier (20 req/dia para flash-lite).** Para obter os valores, execute:
+
+```bash
+uv run python scripts/eval_ragas.py
+```
+Os resultados aparecem automaticamente no dashboard do Streamlit e em `data/eval_results.json`.

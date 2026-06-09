@@ -150,7 +150,4 @@ if query:
 
 
 st.divider()
-st.caption(
-    "Pro Git Q&A Bot — Portifolio | "
-    "Desenvolvendo Software com IA Generativa | TIC 44 - CTE - IA - UFC"
-)
+st.caption("Pro Git Q&A Bot — https://github.com/cavalcanteprofissional/pro-git-qa-bot")
