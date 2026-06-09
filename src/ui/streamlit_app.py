@@ -246,7 +246,7 @@ if not query or not query.strip():
     st.info(
         "👋 Olá! Sou o assistente do livro **Pro Git**. "
         "Pergunte sobre qualquer tópico de Git "
-        "ou digite **"me dê opções"** para ver exemplos."
+        'ou digite **"me dê opções"** para ver exemplos.'
     )
 
 # ── Query handling ──────────────────────────────────────────────────────
