@@ -119,8 +119,9 @@ def handle_query(query: str) -> dict:
     except NotImplementedError:
         decision = None
 
-    # 4. RAG
-    result = pipeline.answer(query)
+    # 4. RAG (passa modelo definido pelo routing ou None para cheap/GROQ)
+    model_name = decision.model if decision else None
+    result = pipeline.answer(query, model=model_name)
 
     # 5. Cache write
     exact_cache.put(query, result["answer"])

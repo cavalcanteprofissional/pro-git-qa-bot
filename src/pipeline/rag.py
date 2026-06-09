@@ -1,6 +1,7 @@
 """RAG pipeline — chunk, embed, index, retrieve, generate.
 
-Reaproveita as funcoes do notebook 02.
+GROQ primário (cheap, free tier 6K TPM / 100K TPD rolling),
+Gemini premium (fallback, free tier 20 req/dia) com auto-fallback em 429.
 """
 
 from __future__ import annotations
@@ -27,32 +28,47 @@ class LocalEmbeddingFunction(EmbeddingFunction):
         return self._model.encode(list(input), show_progress_bar=False).tolist()
 
 
-def _make_client() -> OpenAI:
-    """Inicializa cliente OpenAI-compatible conforme provider escolhido no .env."""
-    if "GEMINI_API_KEY" in os.environ:
-        return OpenAI(
-            api_key=os.environ["GEMINI_API_KEY"],
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        )
-    elif "OPENAI_API_KEY" in os.environ:
-        return OpenAI()
-    else:
-        raise RuntimeError("Configure GEMINI_API_KEY ou OPENAI_API_KEY no .env")
+def _make_groq_client() -> OpenAI | None:
+    """Cliente GROQ (primário cheap, free tier)."""
+    key = os.environ.get("GROQ_API_KEY")
+    if not key:
+        return None
+    return OpenAI(api_key=key, base_url="https://api.groq.com/openai/v1")
+
+
+def _make_gemini_client() -> OpenAI | None:
+    """Cliente Gemini (premium fallback, free tier 20 req/dia)."""
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        return None
+    return OpenAI(
+        api_key=key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    )
 
 
 class RAGPipeline:
-    """Pipeline RAG end-to-end com Chroma local."""
+    """Pipeline RAG end-to-end com Chroma local.
+
+    Usa GROQ como LLM primário (cheap) e Gemini como premium/fallback.
+    Auto-fallback para GROQ se Gemini atingir rate limit 429.
+    """
 
     def __init__(
         self,
         corpus_dir: str = "data/corpus",
         persist_dir: str = "data/chroma",
         collection_name: str = "docs",
-        llm_model: str | None = None,
         embed_model: str | None = None,
     ) -> None:
-        self.client = _make_client()
-        self.llm_model = llm_model or os.environ.get("LLM_MODEL", "gemini-2.5-flash-lite")
+        self._groq = _make_groq_client()
+        self._gemini = _make_gemini_client()
+        self._default_client = self._groq or self._gemini
+        if not self._default_client:
+            raise RuntimeError("Configure GROQ_API_KEY ou GEMINI_API_KEY no .env")
+
+        self.cheap_model = os.environ.get("CHEAP_MODEL", "qwen/qwen3-32b")
+        self.premium_model = os.environ.get("PREMIUM_MODEL", "gemini-2.5-pro")
         self.embed_model = embed_model or "all-MiniLM-L6-v2"
 
         self.embed_fn = LocalEmbeddingFunction(model_name=self.embed_model)
@@ -141,8 +157,13 @@ class RAGPipeline:
         return hits
 
     # ------------------------------------------------------------------ TODO 3
-    def answer(self, question: str, k: int = 5) -> dict:
-        """Pipeline completo: retrieve + augment + generate. Retorna {answer, sources}."""
+    def answer(self, question: str, k: int = 5, model: str | None = None) -> dict:
+        """Pipeline completo: retrieve + augment + generate.
+
+        Args:
+            model: Nome do modelo. None usa cheap_model (GROQ).
+                   premium_model usa Gemini com fallback GROQ em rate limit 429.
+        """
         hits = self.retrieve(question, k=k)
 
         context_parts = []
@@ -154,11 +175,31 @@ class RAGPipeline:
 
         prompt = PROMPT_TEMPLATE.format(context=context, question=question)
 
-        response = self.client.chat.completions.create(
-            model=self.llm_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
+        # Seleciona cliente e modelo
+        if model == self.premium_model and self._gemini:
+            client = self._gemini
+            model_name = self.premium_model
+        else:
+            client = self._groq or self._gemini
+            model_name = model or self.cheap_model
+
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+            )
+        except Exception as e:
+            err_str = str(e)
+            if ("429" in err_str or "RESOURCE_EXHAUSTED" in err_str) and self._groq and client != self._groq:
+                # Gemini rate limited → fallback GROQ cheap
+                response = self._groq.chat.completions.create(
+                    model=self.cheap_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.2,
+                )
+            else:
+                raise
 
         answer_text = response.choices[0].message.content or ""
 

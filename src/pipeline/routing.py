@@ -33,7 +33,7 @@ def classify_complexity(query: str) -> RouteDecision:
 
     Estrategia heuristica simples. Em producao, evoluiria para classifier treinado.
     """
-    cheap_model = os.environ.get("CHEAP_MODEL", "gemini-2.5-flash-lite")
+    cheap_model = os.environ.get("CHEAP_MODEL", "qwen/qwen3-32b")
     premium_model = os.environ.get("PREMIUM_MODEL", "gemini-2.5-pro")
 
     q_lower = query.lower().strip()
