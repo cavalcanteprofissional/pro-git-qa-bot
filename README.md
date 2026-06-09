@@ -175,6 +175,8 @@ uv run python scripts/eval_ragas.py
 ```
 O script faz **exponential backoff** em caso de rate limit e **salvamento incremental** (`data/eval_samples.json`) — pode ser interrompido e retomado quando a cota resetar.
 
+> **Importante para o Streamlit Cloud:** o dashboard lê `data/eval_results.json` do repositório. Após a execução completa, commite o arquivo (`git add data/eval_results.json && git commit && git push`) para que os resultados apareçam no deploy.
+
 ## Q&A — Decisões do Projeto
 
 ### 1. Qual problema concreto vocês resolveram?
