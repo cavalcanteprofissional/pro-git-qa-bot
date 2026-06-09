@@ -71,4 +71,4 @@
 
 | Data | Descrição | Status |
 |------|-----------|--------|
-| — | — | — |
+| 08/06 | SemanticCache quebrava no Streamlit Cloud com `BadRequestError` por depender de API externa (Gemini/OpenAI) para embedding | ✅ Fix: `SentenceTransformer("all-MiniLM-L6-v2")` local, mesma do ChromaDB |

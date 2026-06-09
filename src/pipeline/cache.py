@@ -6,11 +6,10 @@ Reaproveita o notebook 05.
 from __future__ import annotations
 
 import hashlib
-import os
 from typing import Any
 
 import numpy as np
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 
 
 class ExactCache:
@@ -36,25 +35,19 @@ class ExactCache:
 class SemanticCache:
     """Cache por similaridade de embedding. Captura parafrases (~20% adicional)."""
 
+    _model: SentenceTransformer | None = None
+
     def __init__(self, threshold: float = 0.93) -> None:
         self.threshold = threshold
         self._queries: list[str] = []
         self._embeddings: list[np.ndarray] = []
         self._answers: list[str] = []
 
-        if "GEMINI_API_KEY" in os.environ:
-            self._client = OpenAI(
-                api_key=os.environ["GEMINI_API_KEY"],
-                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            )
-            self._embed_model = os.environ.get("EMBED_MODEL", "gemini-embedding-001")
-        else:
-            self._client = OpenAI()
-            self._embed_model = "text-embedding-3-small"
+        if SemanticCache._model is None:
+            SemanticCache._model = SentenceTransformer("all-MiniLM-L6-v2")
 
     def _embed(self, text: str) -> np.ndarray:
-        r = self._client.embeddings.create(model=self._embed_model, input=text)
-        return np.array(r.data[0].embedding)
+        return SemanticCache._model.encode(text)
 
     # ------------------------------------------------------------------ TODO 5
     def get(self, query: str) -> str | None:

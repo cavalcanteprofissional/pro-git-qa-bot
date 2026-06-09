@@ -96,7 +96,14 @@
 - [ ] **5.3** — Verificar tool `lookup_chapter` com "Resuma o capítulo 3"
 - [ ] **5.4** — Verificar cache hit-rate e routing funcionando
 
-### Fase 6 — Entrega ~15 min
+#### Bug Fix — SemanticCache local embedding (Streamlit Cloud compatibility)
+
+- [ ] **FIX** — Substituir embedding via API (OpenAI + Gemini) por `sentence-transformers/all-MiniLM-L6-v2` local:
+  - `SemanticCache._embed` agora usa `SentenceTransformer.encode()` em vez de `OpenAI.embeddings.create()`
+  - Elimina dependência de `GEMINI_API_KEY` no cache → funciona no Streamlit Cloud sem secrets extras
+  - Latência ~50ms, consistente com o `LocalEmbeddingFunction` do ChromaDB
+
+## Fase 6 — Entrega ~15 min
 
 - [ ] **6.1** — Gravar vídeo demo (≤3 min, ambos aparecem)
 - [ ] **6.2** — Confirmar 3 URLs abrindo em janela anônima
