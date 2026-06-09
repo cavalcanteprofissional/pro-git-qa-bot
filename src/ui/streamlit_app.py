@@ -36,6 +36,24 @@ if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
 # ---------------------------------------------------------------- Streamlit UI
 st.set_page_config(page_title="Git Q&A Bot", page_icon=":robot:", layout="centered")
 
+st.markdown(
+    """
+<style>
+/* Sidebar — métricas menores */
+section[data-testid="stSidebar"] [data-testid="stMetricValue"] {
+    font-size: 1.0rem !important;
+}
+section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {
+    font-size: 0.75rem !important;
+}
+section[data-testid="stSidebar"] .stSubheader {
+    font-size: 0.85rem !important;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 st.title(":books: Git Q&A Bot")
 st.caption("Assistente RAG para o livro Pro Git — pergunte, cite, aprenda.")
 
@@ -128,10 +146,9 @@ with st.sidebar:
                 _ar = _eval_data.get("answer_relevancy")
                 _cp = _eval_data.get("context_precision")
 
-                _cols = st.columns(3)
-                _cols[0].metric("Faithfulness", f"{_faith:.2%}" if _faith is not None else "N/A")
-                _cols[1].metric("Answer Relevance", f"{_ar:.2%}" if _ar is not None else "N/A")
-                _cols[2].metric("Context Precision", f"{_cp:.2%}" if _cp is not None else "N/A")
+                st.metric("Faithfulness", f"{_faith:.2%}" if _faith is not None else "N/A")
+                st.metric("Answer Relevance", f"{_ar:.2%}" if _ar is not None else "N/A")
+                st.metric("Context Precision", f"{_cp:.2%}" if _cp is not None else "N/A")
 
                 _meta = f"{_eval_data.get('num_queries', '?')} queries"
                 if _ts := _eval_data.get("timestamp", ""):
