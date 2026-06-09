@@ -210,28 +210,72 @@ def handle_query(query: str) -> dict:
     return result
 
 
+# ---------------------------------------------------------------- sugestões
+_SUGGEST_KEYWORDS = [
+    "opções", "sugestõe", "sugestão", "opcao", "opção",
+    "perguntar", "ideias", "exemplos", "ajuda", "help",
+    "options", "suggest", "o que posso", "me dê",
+]
+
+_SUGGESTIONS = [
+    ("O que é Git?", "🐙"),
+    ("Diferença entre merge e rebase", "🔀"),
+    ("Como criar um repositório?", "📁"),
+    ("Resuma o capítulo 3", "📘"),
+    ("O que é um commit?", "💾"),
+    ("Como funciona o GitHub?", "🐱"),
+    ("O que é staging area?", "📋"),
+    ("Como desfazer um commit?", "⏪"),
+    ("Explique git clone", "📥"),
+    ("O que é .gitignore?", "🚫"),
+]
+
+
 # ---------------------------------------------------------------- chat loop
 query = st.text_input(
-    "Sua pergunta:",
-    placeholder="Ex: O que e Git? | Explique merge e rebase | Resuma o capitulo 3",
+    "💬 Sua pergunta:",
+    placeholder="Pergunte algo sobre Git! Ex: O que é Git? 🐙 | Como fazer merge? 🔀 | Resuma o capítulo 3 📘",
 )
 
-if query:
-    result = handle_query(query)
-    source = result.get("source")
+# ── Suggestion flow ─────────────────────────────────────────────────────
+if "suggestion_query" in st.session_state:
+    query = st.session_state.pop("suggestion_query")
 
-    if source == "exact_cache":
-        st.success("Cache hit (exact)")
-        st.write(result["answer"])
-    elif source == "semantic_cache":
-        st.success("Cache hit (semantic)")
-        st.write(result["answer"])
+# ── Welcome message ─────────────────────────────────────────────────────
+if not query or not query.strip():
+    st.info(
+        "👋 Olá! Sou o assistente do livro **Pro Git**. "
+        "Pergunte sobre qualquer tópico de Git "
+        "ou digite **"me dê opções"** para ver exemplos."
+    )
+
+# ── Query handling ──────────────────────────────────────────────────────
+if query and query.strip():
+    # Detecta pedido de sugestões
+    if any(kw in query.lower() for kw in _SUGGEST_KEYWORDS):
+        st.success("💡 **Aqui estão algumas perguntas que posso responder:**")
+        cols = st.columns(2)
+        for i, (q, emoji) in enumerate(_SUGGESTIONS):
+            with cols[i % 2]:
+                if st.button(f"{emoji} {q}", key=f"suggest_{i}", use_container_width=True):
+                    st.session_state["suggestion_query"] = q
+                    st.rerun()
     else:
-        st.write(result["answer"])
-        if result.get("sources"):
-            with st.expander("Fontes citadas"):
-                for src, page in result["sources"]:
-                    st.write(f"- `{src}:p{page}`")
+        result = handle_query(query)
+        source = result.get("source")
+
+        if source == "exact_cache":
+            st.success("⚡ Resposta do cache (exact match)")
+            st.write(result["answer"])
+        elif source == "semantic_cache":
+            st.success("⚡ Resposta do cache (semantic match)")
+            st.write(result["answer"])
+        else:
+            st.write(result["answer"])
+            if result.get("sources"):
+                with st.expander("📎 Fontes citadas"):
+                    for src, page in result["sources"]:
+                        st.write(f"- `{src}:p{page}`")
 
 
 st.divider()
