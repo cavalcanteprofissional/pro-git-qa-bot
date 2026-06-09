@@ -72,11 +72,29 @@ Benchmark com 10 queries variadas (simples + complexas) no Gemini free tier.
 
 ## Design decisions
 
-- **Embedding local (sentence-transformers `all-MiniLM-L6-v2`) em vez de API.** Gemini free tier tem rate limit de 1.000 chamadas de embedding/dia. Com embedding local, zero dependência de API para indexação + retrieve, e latência de ~50ms no hardware local.
-- **`chunk_size=800` com overlap=100.** Testei 500, 800 e 1.200. 800 equilibra contexto suficiente para respostas completas sem estourar o contexto do Gemini (1M tokens). Overlap de 100 garante que fronteiras de chunk não cortem frases importantes.
-- **Tool `lookup_chapter` para consultas estruturais.** Perguntas como "Resuma o capítulo 3" não fazem sentido como busca vetorial (similaridade semântica com chunks pequenos). A tool acessa a tabela de conteúdo e retorna o sumário do capítulo diretamente.
-- **Cache de 2 níveis (exato + semântico) em vez de um só.** Exact cache captura replays idênticos (~10-15% das queries). Semantic cache (cosine similarity ≥ 0.93) captura paráfrases (~20% adicional). Combinados, eliminam ~30-35% das chamadas LLM.
-- **Sem re-ranking.** Corpus pequeno (1.447 chunks de um único livro). O retrieve top-5 já retorna chunks relevantes; re-ranking adicionaria latência sem ganho perceptível.
+### 1. Embedding local (`all-MiniLM-L6-v2`) em vez de API (`gemini-embedding-001`)
+
+**Tradeoff:** Embedding via API (Gemini) elimina download de modelo (~90MB) e é teoricamente mais acurado, mas o free tier do Gemini limita embeddings a 1.000 req/dia — insuficiente para indexar 1.447 chunks + queries contínuas. O `all-MiniLM-L6-v2` roda localmente em ~50ms por query sem depender de rede nem consumir cota. A perda de acurácia é mínima para um corpus monotemático (um único livro técnico); em um corpus multilíngue ou multi-domínio, o embedding por API valeria o custo.
+
+### 2. Cache de 2 níveis (exato + semântico) em vez de apenas 1
+
+**Tradeoff:** Um cache semântico único já captura paráfrases e replays exatos — por que dois níveis? Porque o embedding do cache semântico exige uma chamada de API (ou inferência local) a cada lookup, adicionando ~200ms de latência. O exact cache é um simples dict lookup (~0,5ms) e captura ~10-15% dos hits sem custo computacional. A latência média do cache exact é irrelevante, então o filtro rápido antes do semântico é um "free lunch". Se a taxa de replay exato fosse <5%, o nível extra não valeria a complexidade.
+
+### 3. Roteamento cheap-first heurístico em vez de classifier treinado
+
+**Tradeoff:** Um classificador treinado (ex.: BERT fine-tuned com 200 exemplos rotulados) poderia categorizar queries com maior acurácia que a heurística de palavras-chave + comprimento. Porém, o custo de construir e manter esse dataset de treino supera o benefício para um MVP: a heurística atual acerta ~90% dos casos (observado no golden set), e os 10% de erros (query simples classificada como complexa, ou vice-versa) têm impacto tolerável — uma query simples indo para o modelo premium custa $0,003 a mais, mas continua funcionando. O classifier treinado valeria a pena em produção com >1.000 queries/dia.
+
+### 4. `chunk_size=800` com overlap=100
+
+Testei 500, 800 e 1.200. 800 equilibra contexto suficiente para respostas completas sem estourar o contexto do Gemini (1M tokens). Overlap de 100 garante que fronteiras de chunk não cortem frases importantes.
+
+### 5. Tool `lookup_chapter` para consultas estruturais
+
+Perguntas como "Resuma o capítulo 3" não fazem sentido como busca vetorial (similaridade semântica com chunks pequenos). A tool acessa a tabela de conteúdo e retorna o sumário do capítulo diretamente.
+
+### 6. Sem re-ranking
+
+Corpus pequeno (1.447 chunks de um único livro). O retrieve top-5 já retorna chunks relevantes; re-ranking adicionaria latência sem ganho perceptível.
 
 ## Limitations
 
