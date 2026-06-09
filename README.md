@@ -22,7 +22,7 @@ flowchart LR
     EXACT -->|miss| SEM{Semantic cache?}
     SEM -->|hit| RESP
     SEM -->|miss| CLS[Classify complexity]
-    CLS -->|simple| CHEAP[Cheap LLM<br>qwen/qwen3-32b (GROQ)]
+    CLS -->|simple| CHEAP["Cheap LLM<br>qwen/qwen3-32b (GROQ)"]
     CLS -->|complex| TOOL[lookup_chapter tool]
     TOOL --> RAG[(Chroma RAG<br>1.579 chunks)]
     RAG --> PREMIUM[Premium LLM<br>gemini-2.5-pro]
