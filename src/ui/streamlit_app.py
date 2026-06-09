@@ -132,6 +132,19 @@ with st.sidebar:
         col1.metric("Cache Hit (exact)", f"{exact_rate:.0f}%")
         col2.metric("Cache Hit (semântico)", f"{semantic_rate:.0f}%")
 
+    # ── Limpar conversa ──────────────────────────────────────────────────
+    with st.container(border=True):
+        if st.button("🗑️ Limpar conversa", use_container_width=True, type="secondary"):
+            st.session_state.total_requests = 0
+            st.session_state.exact_hits = 0
+            st.session_state.semantic_hits = 0
+            st.session_state.latencies = []
+            exact_cache._store.clear()
+            semantic_cache._queries.clear()
+            semantic_cache._embeddings.clear()
+            semantic_cache._answers.clear()
+            st.rerun()
+
     # ── RAGAS Evaluation ────────────────────────────────────────────────
     with st.container(border=True):
         st.subheader("📊 RAGAS Evaluation")
