@@ -76,18 +76,22 @@ with st.sidebar:
             import json
             with open(_eval_file, encoding="utf-8") as _fh:
                 _eval_data = json.load(_fh)
-            if _eval_data.get("faithfulness") is not None:
-                _cols = st.columns(3)
-                _cols[0].metric("Faithfulness", f"{_eval_data['faithfulness']:.2%}")
-                _cols[1].metric("Answer Relevance", f"{_eval_data['answer_relevancy']:.2%}")
-                _cols[2].metric("Context Precision", f"{_eval_data['context_precision']:.2%}")
-                st.caption(f"{_eval_data['num_queries']} queries · {_eval_data.get('timestamp', '')[:10]}")
-            else:
-                st.warning(f"Avaliação pendente: {_eval_data.get('error', 'erro desconhecido')}")
+            _faith = _eval_data.get("faithfulness")
+            _ar = _eval_data.get("answer_relevancy")
+            _cp = _eval_data.get("context_precision")
+
+            _cols = st.columns(3)
+            _cols[0].metric("Faithfulness", f"{_faith:.2%}" if _faith is not None else "N/A")
+            _cols[1].metric("Answer Relevance", f"{_ar:.2%}" if _ar is not None else "N/A")
+            _cols[2].metric("Context Precision", f"{_cp:.2%}" if _cp is not None else "N/A")
+            st.caption(f"{_eval_data['num_queries']} queries · {_eval_data.get('timestamp', '')[:10]}")
+
+            if _faith is None:
+                st.info(_eval_data.get("note", "Faithfulness pendente — GROQ free tier 100K TPD exaurido. Tente novamente apos resetar o limite."))
         except Exception as _e:
             st.warning(f"Erro ao ler avaliação: {_e}")
     else:
-        st.info("Avaliação não executada. Rode `scripts/eval_ragas.py` manualmente (consome cota Gemini).")
+        st.info("Avaliação não executada. Rode `scripts/eval_ragas.py` manualmente (consome cota GROQ/Gemini).")
 
 
 # ---------------------------------------------------------------- handler com @observe()
