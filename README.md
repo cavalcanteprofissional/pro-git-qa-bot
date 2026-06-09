@@ -22,9 +22,9 @@ flowchart LR
     EXACT -->|miss| SEM{Semantic cache?}
     SEM -->|hit| RESP
     SEM -->|miss| CLS[Classify complexity]
-    CLS -->|simple| CHEAP[Cheap LLM<br>gemini-2.5-flash-lite]
+    CLS -->|simple| CHEAP[Cheap LLM<br>qwen/qwen3-32b (GROQ)]
     CLS -->|complex| TOOL[lookup_chapter tool]
-    TOOL --> RAG[(Chroma RAG<br>1.447 chunks)]
+    TOOL --> RAG[(Chroma RAG<br>1.579 chunks)]
     RAG --> PREMIUM[Premium LLM<br>gemini-2.5-pro]
     PREMIUM --> RESP
 ```
@@ -87,18 +87,19 @@ A UI abre em `http://localhost:8501`. Digite perguntas em Português ou Inglês 
 
 ## Cost & Latency
 
-Benchmark com 10 queries variadas (simples + complexas) no Gemini free tier.
+Benchmark com 10 queries variadas (simples + complexas) via GROQ free tier (qwen/qwen3-32b).
+Embedding multilíngue `intfloat/multilingual-e5-small` com `k=7` e `chunk_overlap=200`.
 
 | Estrategia | Custo (10 queries) | Reducao vs baseline | P50 latency | P95 latency |
 |---|--:|---:|---:|---:|
-| Baseline (premium sempre) | $0.00 (free tier) | — | 6.500 ms | 12.000 ms |
-| + Exact cache (hit) | $0.00 | ~100% (evita LLM) | 0,5 ms | 1 ms |
-| + Semantic cache (hit) | $0.00 | ~100% (evita LLM) | 200 ms | 400 ms |
-| **+ Routing cheap-first** | **$0.00** | **~45%** | **3.600 ms** | **8.500 ms** |
+| Baseline (LLM sempre) | $0.00 (free tier) | — | 16.893 ms | 24.382 ms |
+| + Exact cache (hit) | $0.00 | ~100% (evita LLM) | < 1 ms | 1 ms |
+| + Semantic cache (hit) | $0.00 | ~100% (evita LLM) | 200 ms | 200 ms |
+| **+ Routing cheap-first** | **$0.00** | **~60%** | **6.757 ms** | **9.753 ms** |
 
 **Redução estimada em produção (carga típica 40% cache hit + 50% queries simples):** ~70% das chamadas evitam o modelo premium.
 
-> Nota: Gemini free tier é gratuito mas limitado a 10 req/min para `flash-lite` e 1.000 req/dia para embeddings. Custo real = $0. O ganho é em latência e disponibilidade.
+> Nota: Gemini/GROQ free tier são gratuitos mas com limites de taxa. Custo real = $0. O ganho é em latência e disponibilidade.
 
 ## Design decisions
 
@@ -128,11 +129,11 @@ Corpus pequeno (1.447 chunks de um único livro). O retrieve top-5 já retorna c
 
 ## Limitations
 
-1. **Consultas muito genéricas falham no retrieve.** Perguntas como "O que é Git?" retornam *"Não encontrado no corpus"* porque a busca vetorial no Chroma busca similaridade semântica com chunks específicos (800 caracteres) — questões conceituais muito amplas não têm correspondência direta com nenhum chunk. O sistema funciona bem para perguntas específicas ("Como criar um branch?", "Diferença entre merge e rebase"), mas não para definições abstratas de alto nível. Uma abordagem híbrida (BM25 + vetorial) ou fallback com sumário gerado por capítulo mitigaria isso.
+1. **Consultas muito genéricas podem falhar no retrieve.** Perguntas como "O que é Git?" dependem de boa correspondência semântica entre a query e os chunks do corpus. Com embedding multilíngue (`multilingual-e5-small`) e `k=7`, a taxa de acerto melhorou significativamente, mas questões conceituais muito amplas ainda podem ter correspondência difusa com chunks específicos. Uma abordagem híbrida (BM25 + vetorial) mitigaria esse cenário.
 
 2. **Cota real do Gemini free tier é imprevisível.** A documentação oficial indica 1.500 req/dia para `flash-lite`, mas a conta utilizada apresentou limite de **20 req/dia** (observado empiricamente via erro 429 com `quotaValue: '20'`). O sistema não sustenta uso contínuo sem upgrade para tier pago. Isso afeta tanto o chat quanto a avaliação RAGAS, que consome chamadas extras para o LLM juiz.
 
-3. **Embedding monolíngue Inglês para corpus em Inglês com queries em Português.** O modelo `all-MiniLM-L6-v2` é treinado predominantemente em texto Inglês. O corpus do Pro Git é em Inglês, mas a UI aceita perguntas em Português. Embora o Gemini consiga responder em Português (a geração é multilíngue), o **retrieve** pode degradar: a query em Português pode não encontrar os chunks Ingleses mais relevantes porque o embedding não captura bem similaridade cross-lingual. Um modelo bilíngue como `multilingual-MiniLM-L12-v2` ou `BAAI/bge-m3` resolveria, mas aumentaria o tempo de inferência local.
+3. **Embedding multilíngue com cobertura limitada.** O modelo `intfloat/multilingual-e5-small` suporta múltiplos idiomas, mas seu desempenho para consultas muito específicas em Português (ex.: gírias técnicas ou perguntas complexas) pode ser inferior a modelos monolíngues Inglês de maior porte. Um modelo maior como `BAAI/bge-m3` ou `intfloat/multilingual-e5-large` melhoraria a acurácia, mas aumentaria o tempo de inferência local e o uso de RAM (~2GB vs 500MB).
 
 4. **Corpus fixo de 501 páginas.** O sistema só responde com base no Pro Git. Perguntas sobre outros assuntos ou workflows muito específicos podem não encontrar resposta no corpus (fallback: "Não encontrado no corpus").
 
@@ -140,7 +141,7 @@ Corpus pequeno (1.447 chunks de um único livro). O retrieve top-5 já retorna c
 
 - **LLM:** Gemini 2.5 Flash-Lite (default) / Gemini 2.5 Pro (complex queries)
 - **LLM judge (RAGAS):** GROQ (`qwen/qwen3-32b` / `llama-3.3-70b-versatile`) via OpenAI-compatible endpoint, fallback Gemini
-- **Embeddings:** sentence-transformers `all-MiniLM-L6-v2` (local, pipeline) + `HuggingFaceEmbeddings` (RAGAS eval)
+- **Embeddings:** sentence-transformers `intfloat/multilingual-e5-small` (local, pipeline) + `HuggingFaceEmbeddings` (RAGAS eval)
 - **Vector store:** Chroma (persistente local)
 - **UI:** Streamlit
 - **Cache:** SHA256 exact + cosine similarity semantic
