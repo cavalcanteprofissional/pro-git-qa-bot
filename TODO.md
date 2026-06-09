@@ -9,8 +9,8 @@
 | **Provedor LLM** | Gemini (free tier) |
 | **Modelo cheap** | `gemini-2.5-flash-lite` |
 | **Modelo premium** | `gemini-2.5-pro` |
-| **Embedding** | `gemini-embedding-001` |
-| **Chunking** | `chunk_size=800`, `overlap=100` |
+| **Embedding** | `intfloat/multilingual-e5-small` |
+| **Chunking** | `chunk_size=800`, `overlap=200` |
 | **Observabilidade** | Langfuse (banda Excelente) |
 | **Trilha** | Basic (target ≥60 em todos critérios) |
 | **Tool custom** | `lookup_chapter(chapter: int) -> str` |
@@ -102,6 +102,15 @@
   - `SemanticCache._embed` agora usa `SentenceTransformer.encode()` em vez de `OpenAI.embeddings.create()`
   - Elimina dependência de `GEMINI_API_KEY` no cache → funciona no Streamlit Cloud sem secrets extras
   - Latência ~50ms, consistente com o `LocalEmbeddingFunction` do ChromaDB
+
+## Bug Fix 2 — Embedding multilíngue + chunk_overlap + k expansion (09/06)
+
+- [ ] **FIX** — Embedding model `all-MiniLM-L6-v2` (inglês) falha em queries em português:
+  - Trocado para `intfloat/multilingual-e5-small` (multilíngue, 256d, rápido)
+  - `EMBED_MODEL` do `.env` agora é lido de fato pelo pipeline
+- [ ] **FIX** — `chunk_overlap` aumentado de 100 → 200 para evitar corte de sentenças
+- [ ] **FIX** — `k` aumentado de 5 → 7 para incluir chunks adjacentes no contexto
+- [ ] **FIX** — ChromaDB re-indexado com novo modelo de embedding
 
 ## Fase 6 — Entrega ~15 min
 

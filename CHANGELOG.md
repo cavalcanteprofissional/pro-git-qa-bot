@@ -72,3 +72,4 @@
 | Data | Descrição | Status |
 |------|-----------|--------|
 | 08/06 | SemanticCache quebrava no Streamlit Cloud com `BadRequestError` por depender de API externa (Gemini/OpenAI) para embedding | ✅ Fix: `SentenceTransformer("all-MiniLM-L6-v2")` local, mesma do ChromaDB |
+| 09/06 | Embedding `all-MiniLM-L6-v2` (inglês) falha em queries PT-BR. Chunk_overlap=100 corta "what Git is" entre 2 chunks. k=5 perde chunks adjacentes | ✅ Fix: `intfloat/multilingual-e5-small`, overlap=200, k=7, env `EMBED_MODEL` agora é lido, Chroma re-indexado |

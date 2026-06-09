@@ -70,7 +70,7 @@ class RAGPipeline:
 
         self.cheap_model = os.environ.get("CHEAP_MODEL", "qwen/qwen3-32b")
         self.premium_model = os.environ.get("PREMIUM_MODEL", "gemini-2.5-pro")
-        self.embed_model = embed_model or "all-MiniLM-L6-v2"
+        self.embed_model = embed_model or os.environ.get("EMBED_MODEL", "intfloat/multilingual-e5-small")
 
         self.embed_fn = LocalEmbeddingFunction(model_name=self.embed_model)
 
@@ -110,7 +110,7 @@ class RAGPipeline:
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=800,
-            chunk_overlap=100,
+            chunk_overlap=200,
             separators=["\n\n", "\n", ".", " ", ""],
         )
         chunks: list[dict] = []
@@ -132,11 +132,13 @@ class RAGPipeline:
                 documents=[c["text"] for c in chunks],
                 metadatas=[{"source": c["source"], "page": c["page"]} for c in chunks],
             )
+            # Marca qual modelo de embedding foi usado
+            Path(self.persist_dir, ".embed_model").write_text(self.embed_model)
 
         return self.collection.count()
 
     # ------------------------------------------------------------------ TODO 2
-    def retrieve(self, query: str, k: int = 5) -> list[dict]:
+    def retrieve(self, query: str, k: int = 7) -> list[dict]:
         """Busca top-k chunks similares a query."""
         results = self.collection.query(
             query_texts=[query],
@@ -158,7 +160,7 @@ class RAGPipeline:
         return hits
 
     # ------------------------------------------------------------------ TODO 3
-    def answer(self, question: str, k: int = 5, model: str | None = None) -> dict:
+    def answer(self, question: str, k: int = 7, model: str | None = None) -> dict:
         """Pipeline completo: retrieve + augment + generate.
 
         Args:
@@ -225,9 +227,20 @@ PERGUNTA: {question}
 RESPOSTA:"""
 
 
+def _check_embed_model(persist_dir: str, current_model: str) -> None:
+    """Força re-index se o modelo de embedding mudou."""
+    marker = Path(persist_dir) / ".embed_model"
+    if marker.exists() and marker.read_text().strip() != current_model:
+        import shutil
+        shutil.rmtree(persist_dir, ignore_errors=True)
+
+
 def build_rag_pipeline(corpus_dir: str = "data/corpus") -> RAGPipeline:
     """Factory: cria pipeline e indexa corpus se ainda nao indexado."""
-    pipeline = RAGPipeline(corpus_dir=corpus_dir)
+    embed_model = os.environ.get("EMBED_MODEL", "intfloat/multilingual-e5-small")
+    persist_dir = "data/chroma"
+    _check_embed_model(persist_dir, embed_model)
+    pipeline = RAGPipeline(corpus_dir=corpus_dir, persist_dir=persist_dir, embed_model=embed_model)
     if pipeline.collection.count() == 0:
         pipeline.ingest_and_index()
     return pipeline
