@@ -175,10 +175,9 @@ A avaliação quantitativa usa o [RAGAS](https://docs.ragas.io/) framework com u
 1. **Golden set** — `data/golden_set.json` com 14 pares (pergunta, ground_truth) extraídos do conteúdo do Pro Git
 2. **Pipeline execution** — cada query passa pelo pipeline completo (retrieve + answer) com delay de 10s entre chamadas para respeitar o rate limit do Gemini free tier (20 req/dia). Resultados salvos em `data/eval_samples.json` (14/14 coletadas)
 3. **LLM judge via GROQ** — as métricas `faithfulness`, `answer_relevancy` e `context_precision` são calculadas usando `qwen/qwen3-32b` (ou `llama-3.3-70b-versatile`) via endpoint GROQ, com fallback para Gemini. **Embeddings locais** (`HuggingFaceEmbeddings` + `LangchainEmbeddingsWrapper`) eliminam dependência de API keys para retrieval.
-4. **Resultados parciais** — `data/eval_results.json` contém:
-   - `answer_relevancy`: **0.4833**
-   - `context_precision`: **0.5552**
-   - `faithfulness`: pendente (requer >100K tokens — GROQ Dev Tier por US$0.99/mo remove o limite)
+4. **Resultados parciais** — `data/eval_results.json`:
+   `faithfulness=N/A, answer_relevancy=0.4833, context_precision=0.5552`
+   O faithfulness não foi computado por exaustão do limite GROQ free tier 100K TPD.
 5. **Compatibilidade GROQ:** foi necessário um wrapper customizado (`is_finished_parser`) para lidar com `finish_reason` variado que o GROQ retorna, e `max_workers=1` para respeitar o TPM de 6K.
 
 Para executar:
@@ -227,12 +226,12 @@ Com roteamento cheap-first (70% flash-lite, 30% pro): **~10,6% da cota free/dia*
 **78,1%** — calculado sobre custo equivalente em tier pago. Baseline (100% pro a $0,003/query) = $0,30/100 queries. Com cache (35% hit, zero LLM) + routing (70% das misses em flash-lite a $0,00016/query), o custo médio cai para $0,00066/query.
 
 ### 6. Métricas RAGAS
-As métricas `faithfulness`, `answer_relevancy` e `context_precision` são calculadas via `scripts/eval_ragas.py` usando o golden set de 14 queries. O LLM juiz é o **GROQ** (`qwen/qwen3-32b` ou `llama-3.3-70b-versatile`) via endpoint OpenAI-compatible, com fallback para Gemini. Embeddings locais (`HuggingFaceEmbeddings` + `LangchainEmbeddingsWrapper`) sem necessidade de API key. **Resultados atuais** (parciais, free tier GROQ 100K TPD):
-- `answer_relevancy`: 0.4833
-- `context_precision`: 0.5552
-- `faithfulness`: pendente (necessita Dev Tier GROQ ou reset do rolling window)
+Resultado no golden set de 14 queries (GROQ llama-3.3-70b-versatile, free tier 100K TPD):
+
+`faithfulness=N/A, answer_relevancy=0.4833, context_precision=0.5552`
+
+O faithfulness não foi computado porque o limite de tokens do GROQ free tier (100K TPD rolling window) foi exaurido durante a avaliação. Para obter o valor completo, aguarde o reset do limite (~24h) e execute:
 
 ```bash
 uv run python scripts/eval_ragas.py
 ```
-Os resultados aparecem automaticamente no dashboard do Streamlit e em `data/eval_results.json`.
