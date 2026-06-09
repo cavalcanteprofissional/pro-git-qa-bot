@@ -7,6 +7,7 @@ e observabilidade via Langfuse.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -28,7 +29,9 @@ from src.pipeline.rag import build_rag_pipeline  # noqa: E402
 from src.pipeline.routing import classify_complexity  # noqa: E402
 
 # ---------------------------------------------------------------- Langfuse init
-langfuse = Langfuse()
+langfuse = None
+if os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"):
+    langfuse = Langfuse()
 
 # ---------------------------------------------------------------- Streamlit UI
 st.set_page_config(page_title="Git Q&A Bot", page_icon=":robot:", layout="centered")

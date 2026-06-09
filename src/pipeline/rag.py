@@ -7,6 +7,7 @@ Gemini premium (fallback, free tier 20 req/dia) com auto-fallback em 429.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -205,6 +206,7 @@ class RAGPipeline:
                 raise
 
         answer_text = response.choices[0].message.content or ""
+        answer_text = re.sub(r"<think>.*?</think>\s*", "", answer_text, flags=re.DOTALL).strip()
 
         sources = [(h["source"], h["page"]) for h in hits]
 
@@ -212,7 +214,7 @@ class RAGPipeline:
 
 
 PROMPT_TEMPLATE = """Voce e um assistente tecnico. Responda APENAS com base no contexto abaixo.
-Se a informacao nao estiver no contexto, diga "Nao encontrado no corpus".
+Se a informacao nao estiver no contexto, responda educadamente que voce nao sabe e sugira reformular a pergunta.
 Sempre cite a fonte usando o formato [arquivo:pagina].
 
 CONTEXTO:
