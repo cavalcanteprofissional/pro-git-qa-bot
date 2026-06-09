@@ -62,49 +62,106 @@ with st.spinner("Inicializando pipeline RAG..."):
     semantic_cache = get_semantic_cache()
 
 
+# ── Session state: runtime metrics ──────────────────────────────────────
+if "total_requests" not in st.session_state:
+    st.session_state.total_requests = 0
+    st.session_state.exact_hits = 0
+    st.session_state.semantic_hits = 0
+    st.session_state.latencies: list[float] = []
+
 # Sidebar — metricas e debug
 with st.sidebar:
-    st.header("Metricas")
-    st.metric("Chunks indexados", pipeline.collection.count())
-    st.metric("Exact cache", exact_cache.stats()["size"])
-    st.metric("Semantic cache", semantic_cache.stats()["size"])
+    st.title("🤖 Git Q&A Bot")
+    st.caption("Dashboard de métricas")
 
-    # --- RAGAS Evaluation (cached results) ---
-    st.divider()
-    st.subheader("📊 RAGAS Evaluation")
+    # ── Sistema ──────────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.subheader("⚙️ Sistema")
+        col1, col2 = st.columns(2)
+        col1.metric("Chunks indexados", pipeline.collection.count())
 
-    _eval_file = _ROOT / "data" / "eval_results.json"
-    if _eval_file.exists():
-        try:
-            import json
-            with open(_eval_file, encoding="utf-8") as _fh:
-                _eval_data = json.load(_fh)
-            _faith = _eval_data.get("faithfulness")
-            _ar = _eval_data.get("answer_relevancy")
-            _cp = _eval_data.get("context_precision")
+        provider = "GROQ" if pipeline._groq else "Gemini"
+        col2.metric("Provedor", provider)
 
-            _cols = st.columns(3)
-            _cols[0].metric("Faithfulness", f"{_faith:.2%}" if _faith is not None else "N/A")
-            _cols[1].metric("Answer Relevance", f"{_ar:.2%}" if _ar is not None else "N/A")
-            _cols[2].metric("Context Precision", f"{_cp:.2%}" if _cp is not None else "N/A")
-            st.caption(f"{_eval_data['num_queries']} queries · {_eval_data.get('timestamp', '')[:10]}")
+        model_label = os.getenv("CHEAP_MODEL", "qwen/qwen3-32b")
+        st.metric("Modelo LLM", model_label)
 
-            if _faith is None:
-                st.info(_eval_data.get("note", "Faithfulness pendente — GROQ free tier 100K TPD exaurido. Tente novamente apos resetar o limite."))
-        except Exception as _e:
-            st.warning(f"Erro ao ler avaliação: {_e}")
-    else:
-        st.info("Avaliação não executada. Rode `scripts/eval_ragas.py` manualmente (consome cota GROQ/Gemini).")
+        st.markdown(f"**Busca:** Semântica (vetorial)")
+        bm25_ok = "✅ Ativo" if os.getenv("BM25_ENABLED") else "⛔ Inativo"
+        st.markdown(f"**Índice BM25:** {bm25_ok}")
+
+    # ── Desempenho ──────────────────────────────────────────────────────
+    with st.container(border=True):
+        st.subheader("📊 Desempenho")
+
+        s = st.session_state
+        total = s.total_requests
+        exact_hits = s.exact_hits
+        semantic_hits = s.semantic_hits
+        latencies = s.latencies
+
+        col1, col2 = st.columns(2)
+        col1.metric("Requisições", total)
+        p95 = (
+            sorted(latencies)[int(len(latencies) * 0.95)]
+            if len(latencies) >= 20
+            else (max(latencies) if latencies else 0)
+        )
+        col2.metric("Latência P95 (ms)", f"{p95:.0f}" if p95 else "—")
+
+        exact_rate = exact_hits / total * 100 if total > 0 else 0
+        semantic_rate = semantic_hits / total * 100 if total > 0 else 0
+        col1.metric("Cache Hit (exact)", f"{exact_rate:.0f}%")
+        col2.metric("Cache Hit (semântico)", f"{semantic_rate:.0f}%")
+
+    # ── RAGAS Evaluation ────────────────────────────────────────────────
+    with st.container(border=True):
+        st.subheader("📊 RAGAS Evaluation")
+
+        _eval_file = _ROOT / "data" / "eval_results.json"
+        if _eval_file.exists():
+            try:
+                import json
+                with open(_eval_file, encoding="utf-8") as _fh:
+                    _eval_data = json.load(_fh)
+                _faith = _eval_data.get("faithfulness")
+                _ar = _eval_data.get("answer_relevancy")
+                _cp = _eval_data.get("context_precision")
+
+                _cols = st.columns(3)
+                _cols[0].metric("Faithfulness", f"{_faith:.2%}" if _faith is not None else "N/A")
+                _cols[1].metric("Answer Relevance", f"{_ar:.2%}" if _ar is not None else "N/A")
+                _cols[2].metric("Context Precision", f"{_cp:.2%}" if _cp is not None else "N/A")
+
+                _meta = f"{_eval_data.get('num_queries', '?')} queries"
+                if _ts := _eval_data.get("timestamp", ""):
+                    _meta += f" · {_ts[:10]}"
+                st.caption(_meta)
+
+                if _faith is None:
+                    st.info(_eval_data.get("note", ""))
+            except Exception as _e:
+                st.warning(f"Erro ao ler avaliação: {_e}")
+        else:
+            st.info("Avaliação não executada. Rode `scripts/eval_ragas.py` manualmente (consome cota GROQ/Gemini).")
 
 
 # ---------------------------------------------------------------- handler com @observe()
 @observe(name="rag_query", capture_input=True, capture_output=True)
 def handle_query(query: str) -> dict:
     """Executa pipeline completo: cache → routing → RAG → cache write."""
+    import time as _time
+    _t0 = _time.perf_counter()
+
+    s = st.session_state
+    s.total_requests += 1
+
     # 1. Exact cache
     cached = exact_cache.get(query)
     if cached:
         log_event("cache_hit", layer="exact")
+        s.exact_hits += 1
+        s.latencies.append(round((_time.perf_counter() - _t0) * 1000, 1))
         return {"answer": cached, "source": "exact_cache"}
 
     # 2. Semantic cache
@@ -112,6 +169,8 @@ def handle_query(query: str) -> dict:
         cached = semantic_cache.get(query)
         if cached:
             log_event("cache_hit", layer="semantic")
+            s.semantic_hits += 1
+            s.latencies.append(round((_time.perf_counter() - _t0) * 1000, 1))
             return {"answer": cached, "source": "semantic_cache"}
     except NotImplementedError:
         pass
@@ -130,6 +189,7 @@ def handle_query(query: str) -> dict:
     exact_cache.put(query, result["answer"])
     semantic_cache.put(query, result["answer"])
 
+    s.latencies.append(round((_time.perf_counter() - _t0) * 1000, 1))
     return result
 
 
