@@ -30,18 +30,18 @@
 - [x] 3.1 — `streamlit_app.py` personalizado (título + slogan)
 - [x] 3.2 — Langfuse `@observe()` integrado
 - [x] 3.3 — Teste local funcionando (streamlit boots sem erros)
-- [ ] 3.4 — Repositório no GitHub (aguardando permissão)
-- [ ] 3.5 — Deploy no Streamlit Cloud (após push)
+- [x] 3.4 — Push para GitHub feito (branch main)
+- [ ] 3.5 — Deploy no Streamlit Cloud (pendente — ver instruções abaixo)
 
 ## Fase 4 — README + Documentação
 
-- [ ] 4.1 — Problem statement
-- [ ] 4.2 — Diagrama de arquitetura
-- [ ] 4.3 — Tabela de custo/latência
-- [ ] 4.4 — Design decisions
-- [ ] 4.5 — Limitations
-- [ ] 4.6 — GIF de demo
-- [ ] 4.7 — Revisão rubrica
+- [x] 4.1 — Problem statement (3 linhas)
+- [x] 4.2 — Diagrama de arquitetura (Mermaid)
+- [x] 4.3 — Tabela de custo/latência (bench 10 queries)
+- [x] 4.4 — Design decisions (5 bullets)
+- [x] 4.5 — Limitations (3 bullets)
+- [ ] 4.6 — GIF de demo (pendente — gravar com OBS/peek)
+- [x] 4.7 — Revisão rubrica
 
 ## Fase 5 — Testes e Polish
 
