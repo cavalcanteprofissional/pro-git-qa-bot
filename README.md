@@ -55,6 +55,36 @@ streamlit run src/ui/streamlit_app.py
 
 > **Windows:** use `python -m venv .venv && .venv\Scripts\activate` em vez de `uv`.
 
+## Streamlit
+
+### Rodar local
+
+```bash
+streamlit run src/ui/streamlit_app.py
+```
+
+A UI abre em `http://localhost:8501`. Digite perguntas em Português ou Inglês sobre Git e receba respostas com citação da fonte `[arquivo:página]`.
+
+### Deploy no Streamlit Cloud
+
+1. Faça fork/push deste repositório para o GitHub
+2. Acesse [share.streamlit.io](https://share.streamlit.io) e conecte o repositório
+3. Configure os **secrets** (equivalente ao `.env.local`):
+   - `GEMINI_API_KEY` (obrigatório)
+   - `LANGFUSE_PUBLIC_KEY` e `LANGFUSE_SECRET_KEY` (opcional, para tracing)
+   - `GROQ_API_KEY` (opcional, para LLM judge RAGAS)
+4. **Importante:** o dashboard RAGAS lê `data/eval_results.json` do repositório. Se quiser exibir as métricas, commite o arquivo antes do deploy
+
+### Funcionalidades da UI
+
+| Componente | Descrição |
+|---|---|
+| **Chat** | Input de texto + resposta com fontes citadas em `[arquivo:página]` |
+| **Cache indicators** | Badge verde informando se a resposta veio do cache exato ou semântico |
+| **Sidebar — Métricas** | Chunks indexados, tamanho do cache exato e semântico |
+| **Sidebar — RAGAS** | Dashboard com `faithfulness`, `answer_relevancy` e `context_precision` (lê de `data/eval_results.json`) |
+| **Expandable sources** | Botão "Fontes citadas" com a lista de chunks usados na resposta |
+
 ## Cost & Latency
 
 Benchmark com 10 queries variadas (simples + complexas) no Gemini free tier.
