@@ -5,6 +5,7 @@
 ![Demo](assets/demo.gif)
 
 **Live demo:** https://pro-git-app-bot-owjnuwabjucpds3nannzwh.streamlit.app/
+**Vídeo demo:** https://youtu.be/EBsxnnrE06Y
 
 ## Problem statement
 
