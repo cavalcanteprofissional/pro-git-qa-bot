@@ -15,6 +15,4 @@ data/cache/
 # Eval results — descomente para versionar
 # evals/results-*.json
 
-# Briefing do projeto (PDF e markdown extraído)
-projeto-portfolio.pdf
-projeto-portfolio.md
+
